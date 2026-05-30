@@ -30,26 +30,7 @@ function addIdee(data) {
     idees.push(newIdee);
     save();
 }
-// function verifierCategorie(idee){
 
-//     return new Promise((resolve, reject)=>{
-
-//         setTimeout(()=>{
-
-//             if(
-//                 idee.categorie
-//             ){
-//                 resolve(idee);
-//             }else{
-//                 reject(
-//                     "Catégorie invalide"
-//                 );
-//             }
-
-//         },300);
-
-//     });
-// }
 // Afficher les cartes
 function afficherCartes(data = idees) {
     const cards = document.getElementById("card");
@@ -154,6 +135,7 @@ function deleteIdee(id){
     save();
     afficherCartes();
 }
+//ouvrir le modal de suppression
 function openDeleteModal(id){
 
     deleteId = id;
@@ -215,22 +197,15 @@ document.getElementById("editForm")
 
     e.preventDefault();
 
-    const id = Number(
-        document.getElementById("editId").value
-    );
+    const id = Number(document.getElementById("editId").value);
 
-    const titre =
-        document.getElementById("editTitre").value;
+    const titre =document.getElementById("editTitre").value;
 
-    const categorie =
-        document.getElementById("editCategorie").value;
+    const categorie =document.getElementById("editCategorie").value;
 
-    const description =
-        document.getElementById("editDescription").value;
+    const description =document.getElementById("editDescription").value;
 
-    const index = idees.findIndex(
-        item => item.id === id
-    );
+    const index = idees.findIndex(item => item.id === id);
 
     if(index !== -1){
 
