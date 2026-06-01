@@ -9,7 +9,7 @@ function save(){
         JSON.stringify(idees)
     );
 }
-// Récupérer les données du formulaire
+// Recuperer les données du formulaire
 function getForm(form) {
     const formData = new FormData(form);
     return {
@@ -19,7 +19,7 @@ function getForm(form) {
     };
 }
 
-// Ajouter une idée
+// Ajouter une idee
 function addIdee(data) {
     const newIdee = {
         id: Date.now(),
@@ -27,7 +27,7 @@ function addIdee(data) {
         categorie: data.categorie,
         description: data.description,
     }
-    idees.push(newIdee);
+    idees.unshift(newIdee);
     save();
 }
 
@@ -59,7 +59,6 @@ function afficherCartes(data = idees) {
         `).join("");
 
         total.textContent = idees.length;
-
 }
 //filtrer par categorie
  function filtreCategorie() {
@@ -78,7 +77,7 @@ function afficherCartes(data = idees) {
                 b.classList.add("bg-[#111a2e]", "border", "border-[#26324a]");
             });
 
-            //  ACTIVER bouton cliqué
+            //  ACTIVER bouton clique
             btn.classList.add("bg-green", "text-black", "font-bold");
             btn.classList.remove("bg-[#111a2e]", "border", "border-[#26324a]");
 
@@ -166,20 +165,15 @@ function editIdee(id){
 
     if(!idee) return;
 
-    document.getElementById("editId").value =
-        idee.id;
+    document.getElementById("editId").value =idee.id;
 
-    document.getElementById("editTitre").value =
-        idee.titre;
+    document.getElementById("editTitre").value =idee.titre;
 
-    document.getElementById("editCategorie").value =
-        idee.categorie;
+    document.getElementById("editCategorie").value =idee.categorie;
 
-    document.getElementById("editDescription").value =
-        idee.description;
+    document.getElementById("editDescription").value =idee.description;
 
-    document.getElementById("editDialog")
-        .showModal();
+    document.getElementById("editDialog").showModal();
 }
 
 
