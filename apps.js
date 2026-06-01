@@ -8,22 +8,24 @@ function save(){
         JSON.stringify(idees)
     );
 }
+
 // Recuperer les données du formulaire
 function getForm(form) {
     const formData = new FormData(form);
     return {
         titre: formData.get("titre"),
-        categorie: formData.get("categorie"),
+        // categorie: formData.get("categorie"),
         description: formData.get("description")
     };
 }
 
 // Ajouter une idee
-function addIdee(data) {
+async function addIdee(data) {
+    const categorieOllama = await genericCategorie(data.titre,data.description);
     const newIdee = {
         id: Date.now(),
         titre: data.titre,
-        categorie: data.categorie,
+        categorie: categorieOllama,
         description: data.description,
         date :new Date().toLocaleDateString()
     }
@@ -39,7 +41,7 @@ function afficherCartes(data = idees) {
         cards.innerHTML = data.map((idee)=>`
         <div class="bg-[#111a2e] border border-[#26324a] p-4 rounded-xl">
             <span class="text-orange-400 text-xs">
-                ${idee.categorie}
+                ${idee.categorie.toUpperCase()}
             </span>
 
             <h3 class="font-bold mt-2">
@@ -102,23 +104,17 @@ function afficherCartes(data = idees) {
     });
 
 }
-filtreCategorie()
-
-// Afficher tableau dans console (test)
-// function showIdees() {
-//     console.log("Tableau des idées :", idees);
-// }
 
 // Formulaire
 document.getElementById("form")
-.addEventListener("submit", (e) => {
+.addEventListener("submit",async (e) => {
 
     e.preventDefault();
 
     const form = e.target;
     const data = getForm(form);
 
-    addIdee(data)
+   await addIdee(data)
 
     afficherCartes();
 
@@ -220,3 +216,47 @@ document.getElementById("editForm")
         document.getElementById("editDialog").close();
     }
 });
+
+// ajouter une fonction async integrant l'ia
+
+async function genericCategorie(titre,description) {
+
+    const prompt =`
+    Tu es un assistant de classification.
+    Tu es un assistant de classification.
+
+    Choisis UNE SEULE catégorie :
+
+    - pedagogie : cours, formation, apprentissage, professeur, examen, programme d'étude
+    - campus : bâtiment, salle, wifi, réseau, sécurité, matériel, infrastructure
+    - amelioration : suggestion d'amélioration ou nouvelle fonctionnalité
+
+    Réponds uniquement par :
+    evenement
+    pedagogie
+    campus
+    amelioration
+    Règles :
+    - Répond uniquement avec un seul mot
+    - Pas d'explication
+    - Pas de texte en plus
+
+    Titre: ${titre}
+    Description: ${description}
+        `;
+
+    const reponse = await fetch("http://localhost:11434/api/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+        model: "llama3.2",
+        prompt,
+        stream: false,
+    })
+    });
+    const data = await reponse.json();
+
+    return data.response.trim()
+
+    
+}
