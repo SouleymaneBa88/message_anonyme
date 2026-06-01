@@ -50,7 +50,7 @@ function afficherCartes(data = idees) {
                 ${idee.description} \n
             </p>
 
-            <p>
+            <p  class="text-gray-400 text-sm mt-1>
                 ${idee.date}
             </p>
             <button class="rounded-md  px-2.5 py-1.5 text-sm font-semibold text-white inset-ring inset-ring-white/5 hover:bg-white/20"  onclick="editIdee(${idee.id})">
