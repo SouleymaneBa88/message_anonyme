@@ -64,7 +64,7 @@ function afficherCartes(data = idees) {
         </div>
         `).join("");
 
-        total.textContent = idees.length;
+        total.textContent = data.length;
 }
 //filtrer par categorie
  function filtreCategorie() {
