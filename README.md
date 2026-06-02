@@ -1,86 +1,68 @@
-# Sunu-Idée
+# SUNUIDEE - Plateforme de Gestion d'Idées avec Classification IA
 
-Plateforme collaborative de gestion d'idées anonymes pour les promotions scolaires.
+## Présentation du Projet
 
-## Description
+SUNUIDEE est une application web de gestion d'idées et de suggestions permettant aux utilisateurs de soumettre des messages de manière structurée. L'originalité du projet réside dans l'intégration d'un modèle d'intelligence artificielle local pour la classification automatique des soumissions.
 
-Sunu-Idée est une application web permettant aux membres d'une promotion de partager et de consulter des idées de manière anonyme. Cette plateforme favorise la participation inclusive en garantissant l'anonymat des contributeurs, tout en facilitant la discussion et la collecte de suggestions pour améliorer l'expérience étudiante.
+L'application permet de centraliser les retours, de les organiser par catégories thématiques et d'assurer un suivi complet via une interface intuitive.
 
-## Fonctionnalités
+## Fonctionnalités Principales
 
-- Soumission d'idées anonymes avec titre et description
-- Catégorisation des idées (Pédagogie, Événement, Amélioration, Campus)
-- Système de recherche et filtrage par catégorie
-- Interface utilisateur moderne et responsive
-- Affichage des statistiques en temps réel (nombre total d'idées, dernière contribution)
-- Gestion des idées : modification et suppression avec confirmation
-- Système d'identifiant anonyme unique par session
+*   Soumission d'idées : Formulaire de saisie pour le titre et la description.
+*   Classification Automatisée : Utilisation de l'IA (Llama 3.2) pour catégoriser les messages (Pédagogie, Campus, Amélioration).
+*   Gestion CRUD Complète : Possibilité d'ajouter, d'afficher, de modifier et de supprimer des entrées.
+*   Filtrage Dynamique : Système de tri par catégorie pour une consultation facilitée.
+*   Persistance des Données : Stockage local via l'API localStorage du navigateur.
+*   Interface Responsive : Design moderne s'adaptant aux différents types d'écrans.
 
-## Architecture
+## Architecture Technique
 
-Le projet est construit avec les technologies suivantes :
+*   Frontend : JavaScript (ES6+), HTML5, CSS (utilisant Tailwind CSS pour le stylage).
+*   Intelligence Artificielle : Intégration de l'API locale Ollama.
+*   Modèle utilisé : Llama 3.2 pour le traitement du langage naturel et la classification.
 
-- HTML5 pour la structure
-- Tailwind CSS pour le design et la responsivité
-- JavaScript pour la logique métier et l'interactivité
-- FontAwesome pour les ressources graphiques
-- Interface utilisateur sombre et moderne
+## Prérequis
 
-## Installation
+Pour faire fonctionner la classification automatique, vous devez disposer d'une instance Ollama opérationnelle sur votre machine locale.
 
-1. Clonez le repository
-   ```bash
-   git clone https://github.com/SouleymaneBa88/message_anonyme.git
-   ```
+1.  Installer Ollama.
+2.  Télécharger le modèle requis : `ollama run llama3.2`.
+3.  S'assurer que le service est accessible sur `http://localhost:11434`.
 
-2. Accédez au répertoire du projet
-   ```bash
-   cd message_anonyme
-   ```
+## Installation et Configuration
 
-3. Ouvrez le fichier `index.html` dans votre navigateur web
+1.  Clonez le dépôt du projet :
+    ```bash
+    git clone https://github.com/SouleymaneBa88/message_anonyme.git
+    ```
 
-## Utilisation
+2.  Accédez au répertoire du projet :
+    ```bash
+    cd SUNUIDEE/message_anonyme
+    ```
 
-1. L'application génère automatiquement un identifiant anonyme pour chaque utilisateur
-2. Remplissez le formulaire "Nouvelle idée" avec :
-   - Un titre descriptif
-   - Une description détaillée de votre idée
-3. Cliquez sur "Publier" pour soumettre votre idée
-4. Consultez toutes les idées publiées dans la section principale
-5. Utilisez la barre de recherche pour retrouver des idées spécifiques
-6. Filtrez par catégorie pour afficher uniquement les idées souhaitées
-7. Modifiez ou supprimez vos propres idées via les actions disponibles
+3.  Ouvrez le fichier `index.html` dans votre navigateur ou utilisez une extension de type "Live Server".
 
-## Structure du projet
-
-```
-message_anonyme/
-├── index.html          # Fichier principal de l'interface utilisateur
-├── apps.js            # Logique métier et interactions JavaScript
-├── images/            # Ressources graphiques
-└── README.md          # Documentation du projet
+4.  Lien vercel.
+```bash
+https://messageanonym.vercel.app/
 ```
 
-## Thématique
+## Utilisation de l'IA
 
-L'application est spécifiquement conçue pour la promotion P9, permettant aux étudiants de contribuer activement à l'amélioration de leur expérience de promotion.
+L'application envoie les données du formulaire à l'API locale d'Ollama. Un prompt spécifique est utilisé pour garantir que l'IA retourne uniquement une catégorie prédéfinie parmi les suivantes :
+*   Pédagogie
+*   Campus
+*   Amélioration
 
-## Technologies utilisées
+Cette approche permet d'automatiser l'organisation des données sans intervention humaine manuelle lors de la saisie.
 
-- Tailwind CSS 3
-- Font Awesome 7
-- JavaScript Vanilla
-- HTML5
+## Structure du Code Source
 
-## Contribuer
-
-Les contributions sont bienvenues pour améliorer Sunu-Idée. N'hésitez pas à proposer des améliorations ou signaler des bugs.
+*   apps.js : Contient toute la logique applicative (gestion des événements, appels API, manipulation du DOM).
+*   index.html : Structure de l'interface utilisateur et des modales de confirmation.
+*   Local Storage : Les données sont sauvegardées sous la clé "idees" au format JSON.
 
 ## Licence
 
-Ce projet est disponible sous licence publique.
-
-## Contact
-
-Pour toute question ou suggestion, veuillez contacter le propriétaire du repository via GitHub.
+Ce projet est développé dans un cadre éducatif et organisationnel. Pour toute suggestion d'amélioration, n'hésitez pas à soumettre une requête ou à modifier le code source localement.
