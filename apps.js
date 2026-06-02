@@ -154,6 +154,14 @@ function confirmDelete(){
 
     deleteId = null;
 }
+// bouton annuler suppression
+function cancelDelete(){
+    deleteId = null;
+
+    document
+        .getElementById("dialog")
+        .close();
+}
 
 //update
 // ouvrir modal modification
