@@ -1,13 +1,9 @@
-let idees = JSON.parse(
-        localStorage.getItem("idees")
-    ) || [];
-// sauvegarde dans le localstorage
-function save(){
-    localStorage.setItem(
-        "idees",
-        JSON.stringify(idees)
-    );
-}
+// Configuration Supabase
+const SUPABASE_URL = '';
+const SUPABASE_ANON_KEY = '';
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let idees = [];
 
 // Recuperer les données du formulaire
 function getForm(form) {
@@ -21,16 +17,20 @@ function getForm(form) {
 
 // Ajouter une idee
 async function addIdee(data) {
-    const categorieOllama = await genericCategorie(data.titre,data.description);
+    const categorieOpenrouter = await genericCategorie(data.titre,data.description);
     const newIdee = {
-        id: Date.now(),
         titre: data.titre,
-        categorie: categorieOllama,
+        categorie: categorieOpenrouter,
         description: data.description,
-        date :new Date().toLocaleDateString()
     }
-    idees.unshift(newIdee);
-    save();
+    
+    const { data: insertedData, error } = await supabaseClient
+        .from('idees')
+        .insert([newIdee])
+        .select();
+
+    if (error) throw error;
+    return insertedData;
 }
 
 // Afficher les cartes
@@ -53,7 +53,7 @@ function afficherCartes(data = idees) {
             </p>
 
             <p  class="text-gray-400 text-sm mt-1">
-                ${idee.date}
+                ${new Date(idee.created_at).toLocaleDateString()}
             </p>
             <button class="rounded-md  px-2.5 py-1.5 text-sm font-semibold text-white inset-ring inset-ring-white/5 hover:bg-white/20"  onclick="editIdee(${idee.id})">
                <i class="fa-solid fa-pen text-green"></i>
@@ -64,8 +64,20 @@ function afficherCartes(data = idees) {
         </div>
         `).join("");
 
-        total.textContent = idees.length;
+        total.textContent = data.length;
 }
+
+// Charger les données depuis Supabase
+async function fetchIdees() {
+    const { data, error } = await supabaseClient
+        .from('idees')
+        .select('*')
+        .order('created_at', { ascending: false });
+    
+    if (error) console.error("Erreur fetch:", error);
+    else { idees = data; afficherCartes(idees); }
+}
+
 //filtrer par categorie
  function filtreCategorie() {
 
@@ -106,33 +118,57 @@ function afficherCartes(data = idees) {
 }
 
 // Formulaire
-document.getElementById("form")
-.addEventListener("submit",async (e) => {
+document.getElementById("form").addEventListener("submit", async (e) => {
 
     e.preventDefault();
 
     const form = e.target;
-    const data = getForm(form);
+    const bouton = document.getElementById("btnPublier");
 
-   await addIdee(data)
+    // désactiver le bouton
+    bouton.disabled = true;
 
-    afficherCartes();
+    // changer le texte
+    bouton.textContent = "Publication...";
 
-    form.reset();
+    try {
+
+        const data = getForm(form);
+
+        await addIdee(data);
+
+        await fetchIdees();
+
+        form.reset();
+
+    } catch (e) {
+
+        console.error(e);
+
+    } finally {
+
+        // réactiver le bouton
+        bouton.disabled = false;
+
+        // remettre le texte
+        bouton.textContent = "Publier";
+    }
+
 });
 
-afficherCartes();
+fetchIdees();
 filtreCategorie();
 
 // delete
 let deleteId = null;
-function deleteIdee(id){
-    idees = idees.filter(
-        idee => idee.id !== id
-    );
+async function deleteIdee(id){
+    const { error } = await supabaseClient
+        .from('idees')
+        .delete()
+        .eq('id', id);
 
-    save();
-    afficherCartes();
+    if (error) console.error("Erreur suppression:", error);
+    await fetchIdees();
 }
 //ouvrir le modal de suppression
 function openDeleteModal(id){
@@ -153,6 +189,14 @@ function confirmDelete(){
         .close();
 
     deleteId = null;
+}
+// bouton annuler suppression
+function cancelDelete(){
+    deleteId = null;
+
+    document
+        .getElementById("dialog")
+        .close();
 }
 
 //update
@@ -186,8 +230,7 @@ function closeEditModal(){
 
 
 // sauvegarder modification
-document.getElementById("editForm")
-.addEventListener("submit", (e)=>{
+document.getElementById("editForm").addEventListener("submit", async (e)=>{
 
     e.preventDefault();
 
@@ -199,64 +242,81 @@ document.getElementById("editForm")
 
     const description =document.getElementById("editDescription").value;
 
-    const index = idees.findIndex(item => item.id === id);
+    const { error } = await supabaseClient
+        .from('idees')
+        .update({ titre, categorie, description })
+        .eq('id', id);
 
-    if(index !== -1){
-
-        idees[index] = {
-            ...idees[index],
-            titre,
-            categorie,
-            description
-        };
-
-        save();
-        afficherCartes();
-
-        document.getElementById("editDialog").close();
-    }
+    if (error) console.error("Erreur update:", error);
+    
+    await fetchIdees();
+    document.getElementById("editDialog").close();
 });
 
-// ajouter une fonction async integrant l'ia
+// ajouter une fonction async integrant l'ia pour categoriser automatiquement les idees
+async function genericCategorie(titre, description) {
+    try {
 
-async function genericCategorie(titre,description) {
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                "Authorization": "Bearer " + (window.OPENROUTER_API_KEY || ""),
+                "Content-Type": "application/json"
+            },
 
-    const prompt =`
-    Tu es un assistant de classification.
-    Tu es un assistant de classification.
+            body: JSON.stringify({
 
-    Choisis UNE SEULE catégorie :
+                model: "poolside/laguna-m.1:free",
 
-    - pedagogie : cours, formation, apprentissage, professeur, examen, programme d'étude
-    - campus : bâtiment, salle, wifi, réseau, sécurité, matériel, infrastructure
-    - amelioration : suggestion d'amélioration ou nouvelle fonctionnalité
+                messages: [
+                    {
+                        role: "system",
+                        content: `
+                        Tu es un assistant qui catégorise les idées étudiantes.
 
-    Réponds uniquement par :
-    evenement
-    pedagogie
-    campus
-    amelioration
-    Règles :
-    - Répond uniquement avec un seul mot
-    - Pas d'explication
-    - Pas de texte en plus
+                        Tu dois répondre uniquement avec UNE SEULE catégorie parmi :
 
-    Titre: ${titre}
-    Description: ${description}
-        `;
+                        Pédagogie
+                        Événement
+                        Vie de campus
+                        Amélioration technique
 
-    const reponse = await fetch("http://localhost:11434/api/generate", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-        model: "llama3.2",
-        prompt,
-        stream: false,
-    })
-    });
-    const data = await reponse.json();
+                        Réponds uniquement avec un seul mot.
+                        `
+                    },
 
-    return data.response.trim()
+                    {
+                        role: "user",
+                        content: `
+                        Titre : ${titre}
 
-    
+                        Description : ${description}
+`
+                    }
+                ]
+            })
+        });
+
+        const result = await response.json();
+
+        console.log(result);
+
+        if (!response.ok) {
+            throw new Error(result.error?.message);
+        }
+
+        const rawCategory = result.choices[0].message.content
+            .trim()
+            .toLowerCase();
+            
+        // Fallback/Nettoyage pour s'assurer que ça matche nos catégories
+        if (rawCategory.includes("pédagogie") || rawCategory.includes("pedagogie")) return "pedagogie";
+        if (rawCategory.includes("événement") || rawCategory.includes("evenement")) return "evenement";
+        if (rawCategory.includes("campus")) return "vie de campus";
+        return "amelioration";
+
+    } catch (e) {
+        console.error(e);
+        return "amelioration";
+    }
 }
