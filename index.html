@@ -6,6 +6,8 @@
   <title>Sunu-Idée UI</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Supabase JS Library -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <script>
     tailwind.config = {
@@ -128,7 +130,7 @@
 
         <button
           class="btn-filtre bg-[#111a2e] border border-[#26324a] px-4 rounded-xl"
-          data-categorie="campus">
+          data-categorie="vie de campus">
           Campus
         </button>
 
@@ -189,6 +191,7 @@
 
     <!-- BUTTON -->
     <button 
+        id="btnPublier"
         type="submit"
         class="w-full bg-green text-black font-bold py-3 rounded-lg hover:opacity-90 transition"
     >
@@ -283,7 +286,11 @@ class="bg-transparent backdrop:bg-black/50 rounded-xl"
                 </option>
 
                 <option value="amelioration">
-                    Amelioration
+                    Amélioration technique
+                </option>
+
+                <option value="vie de campus">
+                    Vie de campus
                 </option>
             </select>
         </div>
