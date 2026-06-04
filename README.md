@@ -2,32 +2,25 @@
 
 ## Présentation du Projet
 
-SUNUIDEE est une application web de gestion d'idées et de suggestions permettant aux utilisateurs de soumettre des messages de manière structurée. L'originalité du projet réside dans l'intégration d'un modèle d'intelligence artificielle local pour la classification automatique des soumissions.
+SUNUIDEE est une application web de gestion d'idées et de suggestions permettant aux utilisateurs de soumettre des messages de manière structurée. L'originalité du projet réside dans l'intégration d'une intelligence artificielle via OpenRouter pour la classification automatique des soumissions.
 
 L'application permet de centraliser les retours, de les organiser par catégories thématiques et d'assurer un suivi complet via une interface intuitive.
 
 ## Fonctionnalités Principales
 
 *   Soumission d'idées : Formulaire de saisie pour le titre et la description.
-*   Classification Automatisée : Utilisation de l'IA (Llama 3.2) pour catégoriser les messages (Pédagogie, Campus, Amélioration).
+*   Classification Automatisée : Utilisation de l'IA pour catégoriser les messages (Pédagogie, Événement, Vie de campus, Amélioration technique).
 *   Gestion CRUD Complète : Possibilité d'ajouter, d'afficher, de modifier et de supprimer des entrées.
 *   Filtrage Dynamique : Système de tri par catégorie pour une consultation facilitée.
-*   Persistance des Données : Stockage local via l'API localStorage du navigateur.
+*   Persistance des Données : Stockage cloud via **Supabase**.
 *   Interface Responsive : Design moderne s'adaptant aux différents types d'écrans.
 
 ## Architecture Technique
 
 *   Frontend : JavaScript (ES6+), HTML5, CSS (utilisant Tailwind CSS pour le stylage).
-*   Intelligence Artificielle : Intégration de l'API locale Ollama.
-*   Modèle utilisé : Llama 3.2 pour le traitement du langage naturel et la classification.
-
-## Prérequis
-
-Pour faire fonctionner la classification automatique, vous devez disposer d'une instance Ollama opérationnelle sur votre machine locale.
-
-1.  Installer Ollama.
-2.  Télécharger le modèle requis : `ollama run llama3.2`.
-3.  S'assurer que le service est accessible sur `http://localhost:11434`.
+*   Backend & Base de données : **Supabase** (PostgreSQL).
+*   Intelligence Artificielle : Intégration de l'API **OpenRouter**.
+*   Modèle utilisé : `poolside/laguna-m.1:free` pour le traitement du langage naturel et la classification.
 
 ## Installation et Configuration
 
@@ -50,10 +43,11 @@ https://messageanonym.vercel.app/
 
 ## Utilisation de l'IA
 
-L'application envoie les données du formulaire à l'API locale d'Ollama. Un prompt spécifique est utilisé pour garantir que l'IA retourne uniquement une catégorie prédéfinie parmi les suivantes :
-*   Pédagogie
-*   Campus
-*   Amélioration
+L'application envoie les données du formulaire à l'API OpenRouter. Un prompt spécifique est utilisé pour garantir que l'IA retourne uniquement une catégorie prédéfinie parmi les suivantes :
+*   **Pédagogie**
+*   **Événement**
+*   **Vie de campus**
+*   **Amélioration technique**
 
 Cette approche permet d'automatiser l'organisation des données sans intervention humaine manuelle lors de la saisie.
 
@@ -61,7 +55,7 @@ Cette approche permet d'automatiser l'organisation des données sans interventio
 
 *   apps.js : Contient toute la logique applicative (gestion des événements, appels API, manipulation du DOM).
 *   index.html : Structure de l'interface utilisateur et des modales de confirmation.
-*   Local Storage : Les données sont sauvegardées sous la clé "idees" au format JSON.
+*   Supabase : Les données sont stockées dans la table `idees`.
 
 ## Licence
 
