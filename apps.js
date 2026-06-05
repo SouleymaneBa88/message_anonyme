@@ -5,163 +5,228 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let idees = [];
 
-// Recuperer les données du formulaire
+const CATEGORIES = {
+    PEDAGOGIE: 'pedagogie',
+    EVENEMENT: 'evenement',
+    CAMPUS: 'vie-de-campus',
+    AMELIORATION: 'amelioration'
+};
+
+// ============ FORMULAIRE ============
 function getForm(form) {
     const formData = new FormData(form);
-    return {
-        titre: formData.get("titre"),
-        // categorie: formData.get("categorie"),
-        description: formData.get("description")
-    };
+    const titre = formData.get("titre")?.toString().trim();
+    const description = formData.get("description")?.toString().trim();
+
+    if (!titre || titre.length < 5) {
+        throw new Error("Le titre doit contenir au moins 5 caractères");
+    }
+    if (!description || description.length < 15) {
+        throw new Error("La description doit contenir au moins 15 caractères");
+    }
+
+    return { titre, description };
 }
 
-// Ajouter une idee
-async function addIdee(data) {
-    const categorieOpenrouter = await genericCategorie(data.titre,data.description);
-    const newIdee = {
-        titre: data.titre,
-        categorie: categorieOpenrouter,
-        description: data.description,
+// ============ VALIDATION SÉMANTIQUE ============
+async function verifierSens(titre, description) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+
+    try {
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                "Authorization": "Bearer ",
+                "Content-Type": "application/json"
+            },
+            signal: controller.signal,
+            body: JSON.stringify({
+                model: "openai/gpt-oss-120b",
+                messages: [
+                    {
+                        role: "system",
+                        content: `Tu es un validateur de contenu. Réponds UNIQUEMENT avec "VALIDE" ou "INVALIDE".
+                        Un texte est INVALIDE s'il est :
+                        - Du charabia sans sens (ex: "ewrexer", "ssss", "abc123")
+                        - Trop vague (ex: "idée", "truc", "chose")
+                        - Un test évident
+
+                        Réponds "VALIDE" seulement si le texte décrit une vraie idée/action/projet.`
+                    },
+                    {
+                        role: "user",
+                        content: `Titre: "${titre}"\nDescription: "${description}"\n\nCe texte a-t-il du sens ?`
+                    }
+                ]
+            })
+        });
+
+        clearTimeout(timeout);
+
+        if (!response.ok) return false;
+
+        const result = await response.json();
+        // On récupère uniquement le premier mot pour éviter les phrases explicatives de l'IA
+        const reponse = result.choices[0].message.content.trim().toUpperCase().split(/\s+/)[0];
+        
+        // Utilisation d'une égalité stricte car "INVALIDE" contient "VALIDE"
+        return reponse === "VALIDE";
+
+    } catch (e) {
+        console.error("Erreur validation:", e);
+        return true;
     }
+}
+
+// ============ AJOUT IDÉE ============
+async function addIdee(data) {
+    const tempIdee = {
+        titre: data.titre,
+        categorie: 'en-attente',
+        description: data.description,
+    };
     
     const { data: insertedData, error } = await supabaseClient
         .from('idees')
-        .insert([newIdee])
+        .insert([tempIdee])
         .select();
 
     if (error) throw error;
+
+    genericCategorie(data.titre, data.description)
+        .then(async (categorie) => {
+            await supabaseClient
+                .from('idees')
+                .update({ categorie })
+                .eq('id', insertedData[0].id);
+            await fetchIdees();
+        })
+        .catch(err => {
+            console.error("Erreur catégorisation:", err);
+        });
+
     return insertedData;
 }
 
-// Afficher les cartes
+// ============ AFFICHAGE ============
 function afficherCartes(data = idees) {
     const cards = document.getElementById("card");
-    const total = document.getElementById("Total_idee")
+    const total = document.getElementById("Total_idee");
 
-        cards.innerHTML = data.map((idee)=>`
+    if (!data.length) {
+        cards.innerHTML = `<p class="text-gray-500 text-center col-span-full py-8">Aucune idée pour le moment</p>`;
+        total.textContent = 0;
+        return;
+    }
+
+    cards.innerHTML = data.map((idee) => `
         <div class="bg-[#111a2e] border border-[#26324a] p-4 rounded-xl">
-            <span class="text-orange-400 text-xs">
-                ${idee.categorie.toUpperCase()}
+            <span class="text-orange-400 text-xs font-bold">
+                ${(idee.categorie || 'non-classé').toUpperCase().replace(/-/g, ' ')}
             </span>
-
-            <h3 class="font-bold mt-2">
-                ${idee.titre}
-            </h3>
-
-            <p class="text-gray-400 text-sm mt-1">
-                ${idee.description} \n
+            <h3 class="font-bold mt-2 text-white">${escapeHtml(idee.titre)}</h3>
+            <p class="text-gray-400 text-sm mt-1">${escapeHtml(idee.description)}</p>
+            <p class="text-gray-500 text-xs mt-2">
+                ${idee.created_at ? new Date(idee.created_at).toLocaleDateString() : ''}
             </p>
-
-            <p  class="text-gray-400 text-sm mt-1">
-                ${new Date(idee.created_at).toLocaleDateString()}
-            </p>
-            <button class="rounded-md  px-2.5 py-1.5 text-sm font-semibold text-white inset-ring inset-ring-white/5 hover:bg-white/20"  onclick="editIdee(${idee.id})">
-               <i class="fa-solid fa-pen text-green"></i>
-            </button>
-            <button command="show-modal" commandfor="dialog" class="rounded-md  px-2.5 py-1.5 text-sm font-semibold text-white inset-ring inset-ring-white/5 hover:bg-white/20" onclick="openDeleteModal(${idee.id})">
-                <i class="fa-solid fa-trash text-red-500"></i>
-            </button>
+            <div class="flex gap-2 mt-3">
+                <button onclick="editIdee(${idee.id})" class="rounded-md px-2.5 py-1.5 text-sm font-semibold text-white bg-white/10 hover:bg-white/20">
+                    Modifier
+                </button>
+                <button onclick="openDeleteModal(${idee.id})" class="rounded-md px-2.5 py-1.5 text-sm font-semibold text-white bg-white/10 hover:bg-white/20">
+                    Supprimer
+                </button>
+            </div>
         </div>
-        `).join("");
+    `).join("");
 
-        total.textContent = data.length;
+    total.textContent = data.length;
 }
 
-// Charger les données depuis Supabase
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// ============ CHARGEMENT ============
 async function fetchIdees() {
     const { data, error } = await supabaseClient
         .from('idees')
         .select('*')
         .order('created_at', { ascending: false });
     
-    if (error) console.error("Erreur fetch:", error);
-    else { idees = data; afficherCartes(idees); }
+    if (error) {
+        console.error("Erreur fetch:", error);
+        return;
+    }
+    idees = data;
+    afficherCartes(idees);
 }
 
-//filtrer par categorie
- function filtreCategorie() {
-
+// ============ FILTRES ============
+function filtreCategorie() {
     const boutons = document.querySelectorAll(".btn-filtre");
 
     boutons.forEach((btn) => {
-
         btn.addEventListener("click", () => {
-
             const valeur = btn.dataset.categorie;
 
-            //  RESET couleur de tous les boutons
             boutons.forEach((b) => {
                 b.classList.remove("bg-green", "text-black", "font-bold");
                 b.classList.add("bg-[#111a2e]", "border", "border-[#26324a]");
             });
 
-            //  ACTIVER bouton clique
             btn.classList.add("bg-green", "text-black", "font-bold");
             btn.classList.remove("bg-[#111a2e]", "border", "border-[#26324a]");
 
-            // FILTRAGE
             if (valeur === "tout") {
                 afficherCartes(idees);
             } else {
-                const resultat = idees.filter(
-                    (idee) =>
-                        idee.categorie.toLowerCase() === valeur
-                );
-
+                const resultat = idees.filter((idee) => idee.categorie === valeur);
                 afficherCartes(resultat);
             }
-
         });
-
     });
-
 }
 
-// Formulaire
+// ============ FORMULAIRE SUBMIT ============
 document.getElementById("form").addEventListener("submit", async (e) => {
-
     e.preventDefault();
-
-    const form = e.target;
     const bouton = document.getElementById("btnPublier");
-
-    // désactiver le bouton
     bouton.disabled = true;
-
-    // changer le texte
-    bouton.textContent = "Publication...";
+    bouton.textContent = "Vérification...";
 
     try {
+        const data = getForm(e.target);
+        
+        bouton.textContent = "Vérification IA...";
+        const aDuSens = await verifierSens(data.titre, data.description);
+        
+        if (!aDuSens) {
+            alert("Le titre ou la description n'a pas de sens. Veuillez décrire une vraie idée.");
+            return; // Interrompt l'exécution pour empêcher addIdee()
+        }
 
-        const data = getForm(form);
-
+        bouton.textContent = "Publication...";
         await addIdee(data);
-
+        e.target.reset();
         await fetchIdees();
-
-        form.reset();
-
+        
     } catch (e) {
-
+        alert(e.message);
         console.error(e);
-
     } finally {
-
-        // réactiver le bouton
         bouton.disabled = false;
-
-        // remettre le texte
         bouton.textContent = "Publier";
     }
-
 });
 
-fetchIdees();
-filtreCategorie();
-
-// delete
+// ============ SUPPRESSION ============
 let deleteId = null;
-async function deleteIdee(id){
+
+async function deleteIdee(id) {
     const { error } = await supabaseClient
         .from('idees')
         .delete()
@@ -170,77 +235,51 @@ async function deleteIdee(id){
     if (error) console.error("Erreur suppression:", error);
     await fetchIdees();
 }
-//ouvrir le modal de suppression
-function openDeleteModal(id){
 
+function openDeleteModal(id) {
     deleteId = id;
-
-    document
-        .getElementById("dialog")
-        .showModal();
+    document.getElementById("dialog").showModal();
 }
 
-function confirmDelete(){
-
-    deleteIdee(deleteId);
-
-    document
-        .getElementById("dialog")
-        .close();
-
+function confirmDelete() {
+    if (deleteId) deleteIdee(deleteId);
+    document.getElementById("dialog").close();
     deleteId = null;
 }
-// bouton annuler suppression
-function cancelDelete(){
-    deleteId = null;
 
-    document
-        .getElementById("dialog")
-        .close();
+function cancelDelete() {
+    deleteId = null;
+    document.getElementById("dialog").close();
 }
 
-//update
-// ouvrir modal modification
-function editIdee(id){
+// ============ MODIFICATION ============
+function editIdee(id) {
+    const idee = idees.find(item => item.id === id);
+    if (!idee) return;
 
-    const idee = idees.find(
-        item => item.id === id
-    );
-
-    if(!idee) return;
-
-    document.getElementById("editId").value =idee.id;
-
-    document.getElementById("editTitre").value =idee.titre;
-
-    document.getElementById("editCategorie").value =idee.categorie;
-
-    document.getElementById("editDescription").value =idee.description;
-
+    document.getElementById("editId").value = idee.id;
+    document.getElementById("editTitre").value = idee.titre;
+    document.getElementById("editCategorie").value = idee.categorie;
+    document.getElementById("editDescription").value = idee.description;
     document.getElementById("editDialog").showModal();
 }
 
-
-// fermer modal
-function closeEditModal(){
-
-    document.getElementById("editDialog")
-        .close();
+function closeEditModal() {
+    document.getElementById("editDialog").close();
 }
 
-
-// sauvegarder modification
-document.getElementById("editForm").addEventListener("submit", async (e)=>{
-
+document.getElementById("editForm").addEventListener("submit", async (e) => {
     e.preventDefault();
 
     const id = Number(document.getElementById("editId").value);
+    const titre = document.getElementById("editTitre").value.trim();
+    const categorie = document.getElementById("editCategorie").value;
+    const description = document.getElementById("editDescription").value.trim();
 
-    const titre =document.getElementById("editTitre").value;
-
-    const categorie =document.getElementById("editCategorie").value;
-
-    const description =document.getElementById("editDescription").value;
+    if (!titre || !description) {
+        alert("Tous les champs sont requis");
+        return;
+    }
 
     const { error } = await supabaseClient
         .from('idees')
@@ -253,70 +292,58 @@ document.getElementById("editForm").addEventListener("submit", async (e)=>{
     document.getElementById("editDialog").close();
 });
 
-// ajouter une fonction async integrant l'ia pour categoriser automatiquement les idees
+// ============ IA CATÉGORISATION ============
 async function genericCategorie(titre, description) {
-    try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
 
+    try {
         const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
             headers: {
-                "Authorization": "Bearer " + (window.OPENROUTER_API_KEY || ""),
+                "Authorization": "Bearer ",
                 "Content-Type": "application/json"
             },
-
+            signal: controller.signal,
             body: JSON.stringify({
-
-                model: "poolside/laguna-m.1:free",
-
+                model: "openai/gpt-oss-120b",
                 messages: [
                     {
                         role: "system",
-                        content: `
-                        Tu es un assistant qui catégorise les idées étudiantes.
-
-                        Tu dois répondre uniquement avec UNE SEULE catégorie parmi :
-
-                        Pédagogie
-                        Événement
-                        Vie de campus
-                        Amélioration technique
-
-                        Réponds uniquement avec un seul mot.
-                        `
+                        content: `Tu catégorises des idées étudiantes. Réponds UNIQUEMENT avec UN mot parmi: pedagogie, evenement, vie-de-campus, amelioration. Pas de ponctuation, pas d'explication.`
                     },
-
                     {
                         role: "user",
-                        content: `
-                        Titre : ${titre}
-
-                        Description : ${description}
-`
+                        content: `Titre: ${titre}\nDescription: ${description}`
                     }
                 ]
             })
         });
 
-        const result = await response.json();
-
-        console.log(result);
+        clearTimeout(timeout);
 
         if (!response.ok) {
-            throw new Error(result.error?.message);
+            throw new Error(`HTTP ${response.status}`);
         }
 
-        const rawCategory = result.choices[0].message.content
+        const result = await response.json();
+        let raw = result.choices[0].message.content
             .trim()
-            .toLowerCase();
-            
-        // Fallback/Nettoyage pour s'assurer que ça matche nos catégories
-        if (rawCategory.includes("pédagogie") || rawCategory.includes("pedagogie")) return "pedagogie";
-        if (rawCategory.includes("événement") || rawCategory.includes("evenement")) return "evenement";
-        if (rawCategory.includes("campus")) return "vie de campus";
-        return "amelioration";
+            .toLowerCase()
+            .replace(/[.,;:!?]/g, '')
+            .replace(/\s+/g, '-');
+
+        if (raw.includes('pedagogie') || raw.includes('pédagogie')) return CATEGORIES.PEDAGOGIE;
+        if (raw.includes('evenement') || raw.includes('événement') || raw.includes('event')) return CATEGORIES.EVENEMENT;
+        if (raw.includes('campus') || raw.includes('vie-etudiante')) return CATEGORIES.CAMPUS;
+        
+        return CATEGORIES.AMELIORATION;
 
     } catch (e) {
-        console.error(e);
-        return "amelioration";
+        console.error("Erreur catégorisation IA:", e);
+        return CATEGORIES.AMELIORATION;
     }
 }
+// ============ INIT ============
+fetchIdees();
+filtreCategorie();
